@@ -5,11 +5,11 @@
 */
 
 
-int bytecount = 0;
-volatile unsigned int total_bytes;
+int bytecount = 0;                  // Initializes parameter bytecount that influences the switch-case statements in the UART protocol
+volatile unsigned int total_bytes;  // Initializes the total byte parameter that is used to track how many packets are going in and out of the system
 
 
-
+// Port assignment protocol for off-board LED
 void LED_setup(void)
 {
     P1DIR |= BIT2;            // Sets P1.2 as an output --- RED LED
@@ -20,18 +20,22 @@ void LED_setup(void)
     P1SEL |= BIT4;            // Sets P1.4 to TimerA CCR3 --- BLUE LED
 }
 
+// TimerA assignments to set desired Pulse Width Modulation functionality
 void PWM_Setup(void)
 {
     TA0CTL = TASSEL_2 + MC_1 + ID_0 + TACLR;   // Sets timer0 to smclk and mode control up
-    TA0CCR0 = 0xFF;             // Sets register
-    TA0CCR1 = 0x00;
-    TA0CCR2 = 0x00;
-    TA0CCR3 = 0x00;
+    TA0CCR0 = 0xFF;             // Sets CCR0 as max 255 to cut-off packets to 8 bytes
+    TA0CCR1 = 0x00;             // Initializes CCR1 as 0 to receive red LED duty cycle
+    TA0CCR2 = 0x00;             // Initializes CCR2 as 0 to receive green LED duty cycle
+    TA0CCR3 = 0x00;             // Initializes CCR3 as 0 to receive blue LED duty cycle
+
+    // Sets all three control registers to outmode 3, set/reset mode. This allows for each LED to have its own duty cycle with respect to CCR0
     TA0CCTL1 |= OUTMOD_3;
     TA0CCTL2 |= OUTMOD_3;
     TA0CCTL3 |= OUTMOD_3;
 }
 
+// Various UART protocols to enable receiving and transfer ports to communicate between nodes
 void UART_Setup(void)
 {
     P4SEL |= BIT4;              // UART TX
@@ -71,21 +75,20 @@ __interrupt void USCI_A1_ISR(void)
         switch(bytecount)
         {
         case 0:
-            //while(!(UCA1IFG & UCTXIFG));    // USCI_A1 TX buffer ready?
             total_bytes = UCA1RXBUF;        // Total byte length
-            //UCA1TXBUF = total_bytes - 3;    // Sends new number of bytes to next node
             break;
         case 1:
-            TA0CCR1 = UCA1RXBUF;
+            TA0CCR1 = UCA1RXBUF;            // Transfers desired duty cycle, or brightness, to the red LED P1.2
             break;
         case 2:
-            TA0CCR2 = UCA1RXBUF;
+            TA0CCR2 = UCA1RXBUF;            // Transfers desired duty cycle, or brightness, to the green LED P1.3
             break;
         case 3:
-            TA0CCR3 = UCA1RXBUF;
-            while(!(UCA1IFG & UCTXIFG));    // USCI_A1 TX buffer ready?
-            UCA1TXBUF = total_bytes - 3;    // Sends new number of bytes to next node
+            TA0CCR3 = UCA1RXBUF;            // Transfers desired duty cycle, or brightness, to the blue LED P1.4
+            while(!(UCA1IFG & UCTXIFG));    // Checks to see if the USCI_A1 TX buffer is ready
+            UCA1TXBUF = total_bytes - 3;    // Sends new number of total bytes to next node
             break;
+        // Protocol for sending the remaining packets down to the cascading nodes
         default:
             if(bytecount > total_bytes)
             {
@@ -94,10 +97,10 @@ __interrupt void USCI_A1_ISR(void)
             }
             else
             {
-                while(!(UCA1IFG & UCTXIFG));// USCI_A1 TX buffer ready?
-                UCA1TXBUF = UCA1RXBUF;      // Transmit bytes to next board
+                while(!(UCA1IFG & UCTXIFG));// Checks to see if the USCI_A1 TX buffer is ready
+                UCA1TXBUF = UCA1RXBUF;      // Transmits bytes to next node
             }
             break;
         }
-        bytecount++;
+        bytecount++;                        // Increments bytecount to initialize the next CCRX transfer
 }
