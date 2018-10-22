@@ -24,7 +24,7 @@ void LED_setup(void)
 void PWM_Setup(void)
 {
     TA0CTL = TASSEL_2 + MC_1 + ID_0 + TACLR;   // Sets timer0 to smclk and mode control up
-    TA0CCR0 = 0xFF;             // Sets CCR0 as max 255 to cut-off packets to 8 bytes
+    TA0CCR0 = 0xFF;             // Sets CCR0 as max 255 to cut-off packets to a byte
     TA0CCR1 = 0x00;             // Initializes CCR1 as 0 to receive red LED duty cycle
     TA0CCR2 = 0x00;             // Initializes CCR2 as 0 to receive green LED duty cycle
     TA0CCR3 = 0x00;             // Initializes CCR3 as 0 to receive blue LED duty cycle
